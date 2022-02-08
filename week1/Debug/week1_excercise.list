@@ -536,6 +536,7 @@ int main(void)
  80005dc:	781a      	ldrb	r2, [r3, #0]
  80005de:	4b4b      	ldr	r3, [pc, #300]	; (800070c <main+0x23c>)
  80005e0:	705a      	strb	r2, [r3, #1]
+	  //pwm LED
 	  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2, pwm[state_4]);
  80005e2:	4b4e      	ldr	r3, [pc, #312]	; (800071c <main+0x24c>)
  80005e4:	781b      	ldrb	r3, [r3, #0]

@@ -103,7 +103,7 @@ int main(void)
 	  static GPIO_PinState pinState_D3[2] = {0};
 	  static GPIO_PinState pinState_D5[2] = {0};
 	  static GPIO_PinState pinState_D7[2] = {0};
-	  static uint16_t frequency[] = {500,1000,2000,3000};
+	  static uint16_t frequency[] = {2000,1000,500,1000/3};
 	  static uint8_t state_1 = 0;
 	  static uint8_t state_2 = 0;
 	  static uint8_t state_3 = 0;
