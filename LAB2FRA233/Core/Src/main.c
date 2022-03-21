@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
- ******************************************************************************
- * @file           : main.c
- * @brief          : Main program body
- ******************************************************************************
- * @attention
- *
- * Copyright (c) 2022 STMicroelectronics.
- * All rights reserved.
- *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
- *
- ******************************************************************************
- */
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2022 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -65,12 +65,12 @@ static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM11_Init(void);
 /* USER CODE BEGIN PFP */
-
+uint64_t micros();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint64_t micro();
+
 /* USER CODE END 0 */
 
 /**
@@ -106,22 +106,46 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM11_Init();
   /* USER CODE BEGIN 2 */
-	HAL_ADC_Start_IT(&hadc1);
-	HAL_TIM_Base_Start(&htim3);
-	HAL_TIM_Base_Start_IT(&htim11);
+  HAL_ADC_Start_IT(&hadc1);
+  HAL_TIM_Base_Start(&htim3);
+  HAL_TIM_Base_Start_IT(&htim11);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	while (1) {
-			static uint64_t timeStamp = 0;
-			static enum {
-				init, run
-			} STATE = init;
+  while (1)
+  {
+	  static uint64_t timeStamp = 0;
+	  static enum {init, run} STATE = init;
+	  if(micros()-timeStamp>1000){
+		  timeStamp = micros();
+		  switch(STATE){
+		  	  case init:
+		  		  if(ADC_status){
+		  			  ADC_status =0;
+		  			  ADC_value[1]=ADC_value[0];
+		  			  STATE = run;
+		  		  }
+		  		  break;
+		  	  case run:
+		  		  if(ADC_status){
+		  		  ADC_status =0;
+		  		  if(ADC_value[0]-ADC_value[1]<-2048){
+		  			  p_step += 4095;
+		  		  }
+		  		  else if(ADC_value[0]-ADC_value[1]>=2048){
+		  			  p_step -= 4095;
+		  		  }
+		  		  unfiltered[0] = ADC_value[0]+p_step;
+		  		  ADC_value[1]=ADC_value[0];
+		  		  }
+		  		  break;
+		  	  }
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	}
+  }
   /* USER CODE END 3 */
 }
 
@@ -253,7 +277,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
@@ -362,19 +386,20 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint64_t micro() {
-	return _timer + TIM11->CNT;
-}
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-	ADC_status = 1;
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
 	ADC_value[0] = HAL_ADC_GetValue(&hadc1);
+	ADC_status = 1;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim11) {
 		_timer += 65535;
 	}
+}
+
+uint64_t micros() {
+	return _timer + htim11.Instance->CNT;
 }
 /* USER CODE END 4 */
 
@@ -385,10 +410,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-	/* User can add his own implementation to report the HAL error return state */
-	__disable_irq();
-	while (1) {
-	}
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
   /* USER CODE END Error_Handler_Debug */
 }
 
