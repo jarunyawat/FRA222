@@ -111,7 +111,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1) {
 		//simulate Main Task
-		HAL_Delay(100000000);
+		p = ADCData[0] + 4095;
+		//HAL_Delay(100000000);
 		/*if(__HAL_TIM_GET_COUNTER(&htim11)-timeStmap>=10000){
 			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 			timeStmap=__HAL_TIM_GET_COUNTER(&htim11);

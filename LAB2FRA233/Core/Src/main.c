@@ -49,12 +49,13 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint8_t ADC_status = 0;
 int32_t unfiltered[2] = { 0 };
-uint32_t filtered[2] = { 0 };
+float filtered[2] = { 0 };
 float p_max = 4095.0;
 uint16_t ADC_value[2] = { 0 };
-int32_t rad[2] = { 0 };
+float rad[2] = { 0 };
 int32_t p_step = 0;
 uint64_t _timer = 0;
+float RC = 1.0/(2*1*22.0/7);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -137,7 +138,14 @@ int main(void)
 		  			  p_step -= 4095;
 		  		  }
 		  		  unfiltered[0] = ADC_value[0]+p_step;
+		  		  //lowpass
+		  		  filtered[0] = (0.01*unfiltered[0])/(0.01+RC)+(RC*filtered[1])/(0.01+RC);
+		  		  //velocity
+		  		  rad[0] = ((filtered[0]-filtered[1])/0.01)*(60.0/4095.0);
 		  		  ADC_value[1]=ADC_value[0];
+		  		  unfiltered[1]=unfiltered[0];
+		  		  filtered[1]=filtered[0];
+		  		  rad[1]=rad[0];
 		  		  }
 		  		  break;
 		  	  }

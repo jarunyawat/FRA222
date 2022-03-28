@@ -43,6 +43,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim10;
 TIM_HandleTypeDef htim11;
 DMA_HandleTypeDef hdma_tim2_ch1;
@@ -58,6 +59,7 @@ uint32_t capturedata[CAPTURENUM] = { 0 };
 int64_t DiffTime[CAPTURENUM-1] = { 0 };
 //Mean difftime
 float MeanTime =0;
+float velocity = 0;
 
 
 
@@ -74,6 +76,7 @@ static void MX_TIM11_Init(void);
 static void MX_TIM10_Init(void);
 static void MX_DMA_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
 //Read speed of encoder
 void encoderSpeedReaderCycle();
@@ -118,9 +121,11 @@ int main(void)
   MX_TIM10_Init();
   MX_DMA_Init();
   MX_TIM2_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   	  //start Microsec timer
 	HAL_TIM_Base_Start_IT(&htim11);
+	HAL_TIM_Base_Start_IT(&htim5);
 	//start Input capture in DMA
 	HAL_TIM_Base_Start(&htim2);
 	HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_1, (uint32_t*) &capturedata,
@@ -136,11 +141,11 @@ int main(void)
 		//read Time of encoder
 		encoderSpeedReaderCycle();
 
-		if(micros()-timestamp > 1000000)
+		/*if(micros()-timestamp > 1000000)
 		{
 			timestamp = micros();
 			HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
-		}
+		}*/
 
 
     /* USER CODE END WHILE */
@@ -249,6 +254,51 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 100;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 100000;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
 
 }
 
@@ -412,6 +462,7 @@ void encoderSpeedReaderCycle() {
 
 	//mean all Diff
 	MeanTime =sum / (float)(CAPTURENUM-3);
+	velocity = 2*60000000/(MeanTime*3072);
 }
 uint64_t micros()
 {
@@ -422,6 +473,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
  if(htim == &htim11)
  {
 	 _micros += 65535;
+ }
+ if(htim == &htim5){
+	 HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
  }
 }
 /* USER CODE END 4 */
