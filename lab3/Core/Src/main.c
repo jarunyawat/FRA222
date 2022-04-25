@@ -51,10 +51,10 @@ double X[3] = { 0 };
 double X_l[3] = { 0 };
 double P[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
 double P_l[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
-const double var = 10000;
+const double var = 9000;
 double Q[3][3] = { {dt*dt*dt*dt*dt*dt*var/36,dt*dt*dt*dt*dt*var/12,dt*dt*dt*dt*var/6}, {
 		dt*dt*dt*dt*dt*var/12,dt*dt*dt*dt*var/4,dt*dt*dt*var/2 }, { dt*dt*dt*dt*var/6,dt*dt*dt*var/2,dt*dt*var} };
-double R = 0.015;
+double R = 0.02;
 double z = 0;
 double y = 0;
 int q[2] = {0};
