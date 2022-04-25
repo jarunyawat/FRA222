@@ -49,7 +49,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint32_t ADCData[4] = { 0 };
-uint32_t timeStmap = 0;
+uint32_t timeStmap;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -368,16 +368,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 			timeStmap = __HAL_TIM_GET_COUNTER(&htim11);
-			while((__HAL_TIM_GET_COUNTER(&htim11)-timeStmap)<=(1000 + (22695477 * ADCData[0] + ADCData[1]) % 10000)*10){
-			}
-			timeStmap = HAL_GetTick();
-			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+			TIM11->ARR = (__HAL_TIM_GET_COUNTER(&htim11)-timeStmap)<=(1000 + (22695477 * ADCData[0] + ADCData[1]) % 10000)*10;
+			TIM11->CNT = 0;
 		}
 		else if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET) {
-			//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 			timeStmap = HAL_GetTick() - timeStmap;
 		}
 	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+	timeStmap = HAL_GetTick();
 }
 /* USER CODE END 4 */
 
