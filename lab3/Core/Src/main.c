@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "arm_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,6 +39,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim11;
 
@@ -47,19 +48,59 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint64_t _micro = 0;
 const float dt = 0.001;
-double X[3] = { 0 };
-double X_l[3] = { 0 };
-double P[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
-double P_l[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
+float32_t F_data[9] = {1,dt,0.5*dt*dt,0,1,dt,0,0,1};
+arm_matrix_instance_f32 F;
+float32_t X_data[3] = {0};
+arm_matrix_instance_f32 X;
+float32_t X_l_data[3] = {0,0,0};
+arm_matrix_instance_f32 X_l;
+float32_t P_data[9] = {1,1,1,1,1,1,1,1,1};
+arm_matrix_instance_f32 P;
+float32_t P_l_data[9] = {1,1,1,1,1,1,1,1,1};
+arm_matrix_instance_f32 P_l;
+float32_t FP_data[9] = {0};
+arm_matrix_instance_f32 FP;
+float32_t Ft_data[9] = {1,0,0,dt,1,0,0.5*dt*dt,dt,1};
+arm_matrix_instance_f32 Ft;
+float32_t FPFt_data[9] = {0};
+arm_matrix_instance_f32 FPFt;
 const double var = 1000;
-double Q[3][3] = { {dt*dt*dt*dt*dt*dt*var/36,dt*dt*dt*dt*dt*var/12,dt*dt*dt*dt*var/6}, {
-		dt*dt*dt*dt*dt*var/12,dt*dt*dt*dt*var/4,dt*dt*dt*var/2 }, { dt*dt*dt*dt*var/6,dt*dt*dt*var/2,dt*dt*var} };
-double R[2][2] = {{0.00001,0},{0,0.00001}};
-double K[3][2];
-double den;
-double z[2] = {0};
-double y[2] = {0};
-double rad = 0;
+float32_t Q_data[9] = {dt*dt*dt*dt*var/4,dt*dt*dt*var/2,dt*dt*var/2,
+		dt*dt*dt*var/2,dt*dt*var,dt*var,
+		dt*dt*var/2,dt*var,var};
+arm_matrix_instance_f32 Q;
+float32_t R_data[4] = {0.00001,0,0,1000000};
+arm_matrix_instance_f32 R;
+float32_t H_data[6] = {1,0,0,0,1,0};
+arm_matrix_instance_f32 H;
+float32_t Ht_data[6] = {0};
+arm_matrix_instance_f32 Ht;
+float32_t HP_data[6] = {0};
+arm_matrix_instance_f32 HP;
+float32_t PHt_data[6] = {0};
+arm_matrix_instance_f32 PHt;
+float32_t HPHt_data[4] = {0};
+arm_matrix_instance_f32 HPHt;
+float32_t HPHt_R_data[4] = {0};
+arm_matrix_instance_f32 HPHt_R;
+float32_t HPHt_R_inv_data[4] = {0};
+arm_matrix_instance_f32 HPHt_R_inv;
+float32_t K_data[6] = {0};
+arm_matrix_instance_f32 K;
+float32_t KH_data[9] = {0};
+arm_matrix_instance_f32 KH;
+float32_t z_data[2] = {0};
+arm_matrix_instance_f32 z;
+float32_t y_data[2] = {0};
+arm_matrix_instance_f32 y;
+float32_t z_y_data[2] = {0};
+arm_matrix_instance_f32 z_y;
+float32_t Kz_y_data[3] = {0};
+arm_matrix_instance_f32 Kz_y;
+float32_t I_data[9] = {1,0,0,0,1,0,0,0,1};
+arm_matrix_instance_f32 I;
+float32_t I_KH_data[9] = {0};
+arm_matrix_instance_f32 I_KH;
 int q[2] = {0};
 int step = 0;
 int pos[2] = {0};
@@ -71,6 +112,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM11_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 uint64_t Micros();
 /* USER CODE END PFP */
@@ -111,7 +153,37 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_TIM11_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+  //init matrix
+  arm_mat_init_f32(&F, 3, 3, F_data);
+  arm_mat_init_f32(&FP, 3, 3, FP_data);
+  arm_mat_init_f32(&Ft, 3, 3, Ft_data);
+  arm_mat_init_f32(&FPFt, 3, 3, FPFt_data);
+  arm_mat_init_f32(&X, 3, 1, X_data);
+  arm_mat_init_f32(&X_l, 3, 1, X_l_data);
+  arm_mat_init_f32(&P, 3, 3, P_data);
+  arm_mat_init_f32(&P_l, 3, 3, P_l_data);
+  arm_mat_init_f32(&Q, 3, 3, Q_data);
+  arm_mat_init_f32(&z, 2, 1, z_data);
+  arm_mat_init_f32(&y, 2, 1, y_data);
+  arm_mat_init_f32(&z_y, 2, 1, z_y_data);
+  arm_mat_init_f32(&Kz_y, 3, 1, Kz_y_data);
+  arm_mat_init_f32(&R, 2, 2, R_data);
+  arm_mat_init_f32(&H, 2, 3, H_data);
+  arm_mat_init_f32(&Ht, 3, 2, Ht_data);
+  arm_mat_init_f32(&HP, 2, 3, HP_data);
+  arm_mat_init_f32(&KH, 3, 3, KH_data);
+  arm_mat_init_f32(&PHt, 3, 2, PHt_data);
+  arm_mat_init_f32(&HPHt, 2, 2, HPHt_data);
+  arm_mat_init_f32(&HPHt_R, 2, 2, HPHt_R_data);
+  arm_mat_init_f32(&HPHt_R_inv, 2, 2, HPHt_R_inv_data);
+  arm_mat_init_f32(&K, 3, 2, K_data);
+  arm_mat_init_f32(&I, 3, 3, I_data);
+  arm_mat_init_f32(&I_KH, 3, 3, I_KH_data);
+  arm_mat_trans_f32(&H, &Ht);
+  //
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_Base_Start_IT (&htim11);
   	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
   	q[0]=TIM2->CNT;
@@ -133,58 +205,26 @@ int main(void)
 	  				step-=3071;
 	  			}
 	  			pos[0] = q[0] + step;
+	  			z_data[0]=pos[0];
+	  			z_data[1]=(pos[0]-pos[1])/2;
 	  			//predict
-	  			X[0] = X_l[0] + X_l[1] * dt + 0.5 * X_l[2] * dt * dt;
-	  			X[1] = X_l[1] + X_l[2] * dt;
-	  			X[2] = X_l[2];
-	  			P[0][0] = P_l[0][0] + P_l[1][0] * dt + 0.5 * P_l[2][0] * dt * dt
-	  					+ dt
-	  							* (P_l[0][1] + P_l[1][1] * dt
-	  									+ 0.5 * P_l[2][1] * dt * dt)
-	  					+ 0.5 * dt * dt
-	  							* (P_l[0][2] + P_l[1][2] * dt
-	  									+ 0.5 * P_l[2][2] * dt * dt) + Q[0][0];
-	  			P[1][0] = P_l[1][0] + P_l[2][0] * dt
-	  					+ dt * (P_l[1][1] + P_l[2][1] * dt)
-	  					+ 0.5 * dt * dt * (P_l[1][2] + P_l[2][2] * dt) + Q[1][0];
-	  			P[2][0] = P_l[2][0] + P_l[2][1] * dt + 0.5 * dt * dt * P_l[2][2]
-	  					+ Q[2][0];
-	  			P[0][1] = P_l[0][1] + P_l[1][1] * dt + 0.5 * dt * dt * P_l[2][1]
-	  					+ dt
-	  							* (P_l[0][2] + P_l[1][2] * dt
-	  									+ 0.5 * dt * dt * P_l[2][2]) + Q[0][1];
-	  			P[1][1] = P_l[1][1] + P_l[2][1] * dt + P_l[1][2] * dt
-	  					+ 0.5 * dt * dt * P_l[2][2] + Q[1][1];
-	  			P[2][1] = P_l[2][1] + P_l[2][2] * dt + Q[2][1];
-	  			P[0][2] = P_l[0][2] + P_l[1][2] * dt + 0.5 * dt * dt * P_l[2][2]
-	  					+ Q[0][2];
-	  			P[1][2] = P_l[1][2] + dt * P_l[2][2] + Q[1][2];
-	  			P[2][2] = P_l[2][2] + Q[2][2];
+	  			arm_mat_mult_f32(&F, &X_l, &X);
+	  			arm_mat_mult_f32(&F, &P_l, &FP);
+	  			arm_mat_mult_f32(&FP, &Ft, &FPFt);
+	  			arm_mat_add_f32(&FPFt, &Q, &P);
 	  			//correct
-	  			z[0] = pos[0];
-	  			z[1] = (pos[0] - pos[1]) / dt;
-	  			y[0] = z[0] - X[0];
-	  			y[1] = z[1] - X[1];
-	  			den = (P[0][0]+R[0][0])*(P[1][1]*R[1][1])-P[1][0]*P[0][1];
-	  			K[0][0] = (P[0][0]*(P[1][1]+R[1][1])-P[0][1]*P[1][0])/den;
-				K[1][0] = (P[1][0]*(P[1][1]+R[1][1])-P[1][1]*P[1][0])/den;
-				K[2][0] = (P[2][0]*(P[1][1]+R[1][1])-P[2][1]*P[1][0])/den;
-				K[0][1] = (P[0][1]*(P[0][0]+R[0][0])-P[0][0]*P[0][1])/den;
-				K[1][1] = (P[1][1]*(P[0][0]+R[0][0])-P[1][0]*P[0][1])/den;
-				K[2][1] = (P[2][1]*(P[0][0]+R[0][0])-P[2][0]*P[0][1])/den;
-	  			X_l[0] = X[0] + K[0][0]*y[0]+K[0][1]*y[1];
-	  			X_l[1] = X[1] + K[1][0]*y[0]+K[1][1]*y[1];
-	  			X_l[2] = X[2] + K[2][0]*y[0]+K[2][1]*y[1];
-	  			P_l[0][0] = P[0][0]*(1-K[0][0])-P[1][0]*K[0][1];
-	  			P_l[1][0] = -P[0][0]*K[1][0]+P[1][0]*(1-K[1][1]);
-	  			P_l[2][0] = -P[0][0]*K[2][0]-P[1][0]*K[2][1]+P[2][0];
-	  			P_l[0][1] = P[0][1]*(1-K[0][0])-P[1][1]*K[0][1];
-	  			P_l[1][1] = -P[0][1]*K[1][0]+P[1][1]*(1-K[1][1]);
-	  			P_l[2][1] = -P[0][1]*K[2][0]-P[1][1]*K[2][1]+P[2][1];
-	  			P_l[0][2] = P[0][2]*(1-K[0][0])-P[1][2]*K[0][1];
-	  			P_l[1][2] = -P[0][2]*K[1][0]+P[1][2]*(1-K[1][1]);
-	  			P_l[2][2] = -P[0][2]*K[2][0]-P[1][2]*K[2][1]+P[2][2];
-	  			rad = (X_l[1]/3071.0)*2*22/7;
+	  			arm_mat_mult_f32(&P, &Ht, &PHt);
+	  			arm_mat_mult_f32(&H, &P, &HP);
+	  			arm_mat_mult_f32(&HP, &Ht, &HPHt);
+	  			arm_mat_add_f32(&HPHt, &R, &HPHt_R);
+	  			arm_mat_inverse_f32(&HPHt_R, &HPHt_R_inv);
+	  			arm_mat_mult_f32(&PHt, &HPHt_R_inv, &K);
+	  			arm_mat_mult_f32(&H, &X, &y);
+	  			arm_mat_sub_f32(&z, &y, &z_y);
+	  			arm_mat_mult_f32(&K, &z_y, &Kz_y);
+	  			arm_mat_add_f32(&X, &Kz_y, &X_l);
+	  			arm_mat_sub_f32(&I, &KH, &I_KH);
+	  			arm_mat_mult_f32(&I_KH, &P, &P_l);
 	  			q[1] = q[0];
 	  			pos[1] = pos[0];
 	  		}
@@ -240,6 +280,71 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 9999;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 499;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -260,7 +365,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 3071;
+  htim2.Init.Period = 7199;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
@@ -368,7 +473,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -376,12 +481,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin PA9 */
+  GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
