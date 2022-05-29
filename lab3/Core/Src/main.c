@@ -54,22 +54,22 @@ float32_t X_data[3] = {0};
 arm_matrix_instance_f32 X;
 float32_t X_l_data[3] = {0,0,0};
 arm_matrix_instance_f32 X_l;
-float32_t P_data[9] = {1,1,1,1,1,1,1,1,1};
+float32_t P_data[9] = {0};
 arm_matrix_instance_f32 P;
 float32_t P_l_data[9] = {1,1,1,1,1,1,1,1,1};
 arm_matrix_instance_f32 P_l;
 float32_t FP_data[9] = {0};
 arm_matrix_instance_f32 FP;
-float32_t Ft_data[9] = {1,0,0,dt,1,0,0.5*dt*dt,dt,1};
+float32_t Ft_data[9] = {0};
 arm_matrix_instance_f32 Ft;
 float32_t FPFt_data[9] = {0};
 arm_matrix_instance_f32 FPFt;
-const double var = 1000;
+const double var = 5;
 float32_t Q_data[9] = {dt*dt*dt*dt*var/4,dt*dt*dt*var/2,dt*dt*var/2,
 		dt*dt*dt*var/2,dt*dt*var,dt*var,
 		dt*dt*var/2,dt*var,var};
 arm_matrix_instance_f32 Q;
-float32_t R_data[4] = {0.00001,0,0,1000000};
+float32_t R_data[4] = {1,10,10,36000};
 arm_matrix_instance_f32 R;
 float32_t H_data[6] = {1,0,0,0,1,0};
 arm_matrix_instance_f32 H;
@@ -182,6 +182,7 @@ int main(void)
   arm_mat_init_f32(&I, 3, 3, I_data);
   arm_mat_init_f32(&I_KH, 3, 3, I_KH_data);
   arm_mat_trans_f32(&H, &Ht);
+  arm_mat_trans_f32(&F, &Ft);
   //
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_Base_Start_IT (&htim11);
@@ -197,16 +198,17 @@ int main(void)
 	  static int timeStamp = 0;
 	  		if (Micros() - timeStamp > 1000) {
 	  			timeStamp = Micros();
+	  			TIM1->CCR1 = 0;
 	  			q[0] = TIM2->CNT;
 	  			if(q[0]-q[1]<-1000){
-	  				step+=3071;
+	  				step+=7200;
 	  			}
 	  			else if(q[0]-q[1]>=1000){
-	  				step-=3071;
+	  				step-=7200;
 	  			}
 	  			pos[0] = q[0] + step;
 	  			z_data[0]=pos[0];
-	  			z_data[1]=(pos[0]-pos[1])/2;
+	  			z_data[1]=(pos[0]-pos[1])/dt;
 	  			//predict
 	  			arm_mat_mult_f32(&F, &X_l, &X);
 	  			arm_mat_mult_f32(&F, &P_l, &FP);
@@ -223,6 +225,7 @@ int main(void)
 	  			arm_mat_sub_f32(&z, &y, &z_y);
 	  			arm_mat_mult_f32(&K, &z_y, &Kz_y);
 	  			arm_mat_add_f32(&X, &Kz_y, &X_l);
+	  			arm_mat_mult_f32(&K, &H, &KH);
 	  			arm_mat_sub_f32(&I, &KH, &I_KH);
 	  			arm_mat_mult_f32(&I_KH, &P, &P_l);
 	  			q[1] = q[0];
@@ -299,7 +302,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 9999;
+  htim1.Init.Prescaler = 9;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 499;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
